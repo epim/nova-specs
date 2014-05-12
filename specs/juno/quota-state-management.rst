@@ -11,6 +11,8 @@ Quota state management
 Blueprint is here: 
 https://blueprints.launchpad.net/nova/+spec/quota-state-management
 
+Review is here: https://review.openstack.org/#/c/93353/
+
 Enhance Nova quotas by adding a concept of state management to quotas. Making 
 it easier to align existing business processes with OpenStack.
 
@@ -96,6 +98,37 @@ as possible.
 
 REST API impact
 ---------------
+* os-quota-queue
+  * by default return a list of all quota elements whose state is not 
+    "approved" or deleted. 
+  * Optionally allow a comma separated list of states and only return rows 
+    matching those states where deleted=0
+  * Allow "show_deleted" as a boolean argument that'll show deleted quota as 
+    well.
+ 
+ * Error Response Codes (same as the 'v2/{tenant_id}/servers/detail' API):
+  * computeFault (400, 500, ...)
+  * serviceUnavailable (503)
+  * badRequest (400)
+  * unauthorized (401)
+  * forbidden (403)
+  * badMethod (405)
+  
+ * Parameters (same as the 'v2/{tenant_id}/servers' API except the 'limit' and
+  'marker' parameters):
+
++---------------+-------+--------------+--------------------------------------+
+| Parameter     | Style | Type         | Description                          |
++===============+=======+==============+======================================+
+| all_tenants   | query | xsd:boolean  | Display server count information     |
+| (optional)    |       |              | from all tenants (Admin only).       |
++---------------+-------+--------------+--------------------------------------+
+| changes-since | query | xsd:dateTime | A time/date stamp for when the       |
+| (optional)    |       |              | serverlast changed status.           |
++---------------+-------+--------------+--------------------------------------+
+| state         | query | csapi:State  | the string representing the current  |
+| (optional)    |       |              | state of the quota                   |
++---------------+-------+--------------+--------------------------------------+
 
 * os-quota-sets
 
@@ -162,10 +195,10 @@ mark the state of quota as "approved".
 Performance Impact
 ------------------
 
-Calculating quota by summing rows is going to require more compute resources on
-the DB server. This would only be significant in large or 'mega' scale 
-environments. This can be mitigated in those environments by calling quota-get
-against read-only DB hosts. 
+Calculating quota by summing rows is going to require additional CPU on the DB
+This would only be significant in large or 'mega' scale environments. This can
+be mitigated in those environments by only calling quota-get against Read-only
+DB slaves. 
 
 Other deployer impact
 ---------------------
@@ -176,7 +209,8 @@ default creating quotas will be 'hard' quota.
 Developer impact
 ----------------
 
-* Any API changes will need to be aligned with this
+* Any API changes will need to be reflected in the nova CLI
+* Anything that queries quota in nova without using Oslo would be in a bad state.
 
 
 Implementation
